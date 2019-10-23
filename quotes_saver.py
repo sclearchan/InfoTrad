@@ -19,7 +19,7 @@ class QuotesSaver:
       'bid': 0,
     }
 
-    self.sleep_timer = 1; # sec
+    self.sleep_timer = 0.5; # sec
 
     # Connection 으로부터 Cursor 생성
     self.conn = pymysql.connect(

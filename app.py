@@ -7,7 +7,10 @@ import time
 import datetime
 from config import BITMEX_CONFIG, MYSQL_INFO, REDIS_INFO
 import threading
+from multiprocessing import Process
+
 import pymysql
+import copy
 
 REDIS_CLIENT = redis.Redis(
   host = REDIS_INFO['host'],
@@ -45,23 +48,28 @@ class InfoTrader:
         self.sell_data.append(sell_count);
       else:
         # shift buy/sell count data
-        data = []
+        buy_data = copy.deepcopy(self.buy_data)
+        sell_data = copy.deepcopy(self.sell_data)
+        process = [];
 
-        for idx, val in enumerate(self.buy_data):
-          data.append([val,self.sell_data[idx]])
+        process.append(Process(target=self.calculate, args=(buy_data, sell_data, 'EA', 'LK')))
+        process.append(Process(target=self.calculate, args=(buy_data, sell_data, 'EA', 'EHO')))
 
-        t = threading.Thread(target=self.calculate, args=(data, 'EA', 'LK'))
-        t.start()
-        t = threading.Thread(target=self.calculate, args=('EA', 'EHO', self.curs))
-        t.start()
-        t = threading.Thread(target=self.calculate, args=('YZ', 'LK', self.curs))
-        t.start()
-        t = threading.Thread(target=self.calculate, args=('YZ', 'EHO', self.curs))
-        t.start()
-        t = threading.Thread(target=self.calculate, args=('GAN', 'LK', self.curs))
-        t.start()
-        t = threading.Thread(target=self.calculate, args=('GAN', 'EHO', self.curs))
-        t.start()
+        for p in process:
+          p.start();
+
+        # t = Process(target=self.calculate, args=(buy_data, sell_data, 'EA', 'LK'))
+        # t.start()
+        # t = Process(target=self.calculate, args=(buy_data, sell_data,'EA', 'EHO'))
+        # t.start()
+        # t = Process(target=self.calculate, args=(buy_data, sell_data,'YZ', 'LK'))
+        # t.start()
+        # t = Process(target=self.calculate, args=(buy_data, sell_data,'YZ', 'EHO'))
+        # t.start()
+        # t = Process(target=self.calculate, args=(buy_data, sell_data,'GAN', 'LK'))
+        # t.start()
+        # t = Process(target=self.calculate, args=(buy_data, sell_data,'GAN', 'EHO'))
+        # t.start()
 
         self.buy_data.pop(0);
         self.sell_data.pop(0);
@@ -74,7 +82,12 @@ class InfoTrader:
 
       time.sleep(self.sleep_timer);
 
-  def calculate(self, data, main, sub):
+  def calculate(self, buy, sell, main, sub):
+    data = []
+
+    for idx, val in enumerate(buy):
+      data.append([val, sell[idx]])
+    to_save_data = copy.deepcopy(data);
 
     if main == 'EA':
       instance = ea.EAClass();
@@ -84,9 +97,13 @@ class InfoTrader:
       instance = yz.YZClass();
 
     result = instance.run(data, sub);
-    print(main ,sub)
-    print(result)
-    self.curs.execute("INSERT INTO paramaters (alpha, delta, mu, epsilon_b, epsilon_s, likval, pin, trade_type) VALUES(%s, %s, %s, %s, %s, %s, %s, %s);", \
-      (float(result['alpha']), float(result['delta']), float(result['mu']), float(result['epsilon_b']), float(result['epsilon_s']), float(result['likval']), float(result['pin']), f'{main}:{sub}' ))
+
+    try:
+      self.curs.execute("INSERT INTO paramaters (alpha, delta, mu, epsilon_b, epsilon_s, likval, pin, trade_type, cal_data) VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s);", \
+        (str(result['alpha']), str(result['delta']), str(result['mu']), str(result['epsilon_b']), str(result['epsilon_s']), str(result['likval']), str(result['pin']), f'{main}:{sub}', str(to_save_data) ))
+    except:
+      print('*'*20,' error start')
+      print(result)
+      print('*'*20,' error end')
 
 a = InfoTrader();

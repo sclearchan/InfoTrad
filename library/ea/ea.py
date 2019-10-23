@@ -29,7 +29,6 @@ class EAClass:
       Example:
         >>> r = run_ea(data, "LK")
     '''
-
     # Imbalance with sign and abs
     for idx, val in enumerate(data):
       data[idx].append(val[BUY] - val[SELL]);
@@ -106,8 +105,6 @@ class EAClass:
     # plt.plot(alpha_plt, 'r-')
     # plt.plot(delta_plt, 'b-')
     # plt.show()
-
-    print(paramater)
 
     res = minimize(nLL, paramater,  method='Nelder-Mead')
     print(f'Optimize Result: {res.message}')
